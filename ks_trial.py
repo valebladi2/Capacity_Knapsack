@@ -88,16 +88,24 @@ def flatten(x):
 		
 def geographic_2d_distance(i, j,nodes_coor):
 	R = 6371  # Earth radius in kilometers
-	dLat = math.radians(nodes_coor[j,0] - nodes_coor[i,0])
-	dLon = math.radians(nodes_coor[j,1] - nodes_coor[i,1])
-	lat1 = math.radians(nodes_coor[i,0])
-	lat2 = math.radians(nodes_coor[j,0])
+	dLat = math.radians(nodes_coor[j,1] - nodes_coor[i,1])
+	dLon = math.radians(nodes_coor[j,0] - nodes_coor[i,0])
+	lat1 = math.radians(nodes_coor[i,1])
+	lat2 = math.radians(nodes_coor[j,1])
 	return 2 * R * math.asin(math.sqrt(math.sin(dLat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2)**2)) #converted in kilometers
 
-def cost_murmel(dist):
-	energy_cost = dist*weight_murmel + energy_unload + energy_compress + energy_emptying
-	time_cost = dist*speed_murmel + time_unload + time_compress + time_emptying
-	return (energy_cost+time_cost)
+def cost_murmel_distance(dist):
+	energy_cost = dist*weight_murmel
+	time_cost = dist*speed_murmel
+	return (energy_cost, time_cost)
+
+def cost_murmel_compressing(bins_empied):
+	energy_cost = (energy_unload + energy_compress + energy_emptying)*bins_empied
+	time_cost =  (time_unload + time_compress + time_emptying)*bins_empied
+	return (energy_cost,time_cost)
+
+def cost_murmel_swap_battery(dist):
+	return dist
 
 def cost_mothership(dist):
 	energy_cost = dist*weight_mothership+energy_dropoff
@@ -169,14 +177,21 @@ def calculate_final(points_cap,points,capacity):
 	f_dist_cost = 0
 	f_energy_cost_bins = 0
 	f_time_cost_bins = 0
-	f_cap = len(points_cap)
+	f_cap = len(points_cap)-1
 	t_nodes_coor = nodes_coor.tolist()
 	for i in points:
 		final_route.append(t_nodes_coor[i])
 	for i in range (0,len(points)-1):
 		f_dist_cost +=  (dist[points[i], points[i+1]])
-	f_energy_cost_bins = (energy_unload + energy_compress + energy_emptying) * (len(points_cap)-1) #TODO compress tie and energy is times the acutal garbage collected
-	f_time_cost_bins   = (time_unload + time_compress + time_emptying)       * (len(points_cap)-1)
+		a = dist[points[i], points[i+1]]
+		b,c = cost_murmel_distance(a)
+		f_energy_cost_bins += b
+		f_time_cost_bins += c
+	energy_cost_copm, time_cost_copm = cost_murmel_compressing(f_cap)
+	print ('---------')
+	print (f_energy_cost_bins,f_time_cost_bins,energy_cost_copm,time_cost_copm)
+	#f_energy_cost_bins += (energy_unload + energy_compress + energy_emptying) * (len(points_cap)-1) #TODO compress tie and energy is times the acutal garbage collected
+	#f_time_cost_bins   += (time_unload + time_compress + time_emptying)       * (len(points_cap)-1)
 	return (f_cap,f_energy_cost_bins,f_time_cost_bins,f_dist_cost,final_route)
 
 def gui(f_route):
@@ -201,14 +216,14 @@ if __name__ == "__main__":
 	nodes_bins_cap = np.array(nodes)[:,[3]].astype(int)
 	# generate cost and value functions for murmel
 	dist = np.zeros((len(nodes_coor), len(nodes_coor)))
-	costs = np.zeros((len(nodes_coor), len(nodes_coor)))
+	#costs = np.zeros((len(nodes_coor), len(nodes_coor)))
 	value = np.zeros((len(nodes_coor), len(nodes_coor)))
 	for i in range(len(nodes_coor)):
 		for j in range(i):
 			dist[i,j] = geographic_2d_distance(i,j,nodes_coor)
 			dist[j,i] = dist[i,j]
-			costs[j,i] = cost_murmel(dist[j,i])
-			costs[i,j] = costs[j,i]
+			#costs[j,i] = cost_murmel(dist[j,i])
+			#costs[i,j] = costs[j,i]
 			value[i,j] = ((nodes_bins_cap[i]+nodes_bins_cap[j])/sum(nodes_bins_cap))/dist[i,j] #the value it is added given its collection
 			value[j,i] = ((nodes_bins_cap[i]+nodes_bins_cap[j])/sum(nodes_bins_cap))/dist[j,i]  #TODO think if it should it be dist or cost
 
@@ -242,21 +257,23 @@ if __name__ == "__main__":
 		value_current = c_values[num_visited[-1]].tolist()
 	#calculate final path on energy time and distance
 	f_cap, f_energy,f_time,f_distance, f_route = calculate_final(num_visited_cap,num_visited,nodes_bins_cap)
-	if show_gui:
-		gui(f_route)
 
 	print('Visited Ndes: ',num_visited)
 	print ('Visited Ndes with cap: ',num_visited_cap)
-	print ('Visited Ndes: ',f_cap)
+	print ('Number of dustbins:', len(num_visited))
+	print ('Emptying times: ',f_cap)
 	print ('Energy in KWhs: ',f_energy)
 	print ('Time in hrs: ', f_time)
 	print ('Distance in km: ',f_distance) #, f_route)
 	print ('Finished')
 
+	if show_gui:
+		gui(f_route)
+		
 #TODO Next
 #1 complete the total cost of the path DONE, find a better cost function which will help optimize the path
-#1.1 add battery restriction and time of changing 
-#2 add mother ship
-#3 calibrate cost function to get a good cost-benefit trade off
+#1.1 add battery restriction and time of changing, choose threshold gor this 10% min battery.
+#2 add mother ship, notes (do three cases and see which is better)
+#3 calibrate cost function to get a good cost-benefit trade off done , good results
 # make a conection between the price we have for energy and time so we can correlate energy and time 
 #4 have the base case, which is having 50% and stops at every 2nd bin 

@@ -14,6 +14,7 @@ from pathlib import Path						# working with paths independent of the operationg
 from enum import Enum							# working with enumerations
 from itertools import zip_longest
 
+
 class Debug(Enum):
 	OFF = 0
 	MIN = 1
@@ -24,8 +25,8 @@ class Debug(Enum):
 		return self.name
 
 class Initial(Enum):
-	NEARESTNEIGHBOR = 0
-	SWEEP = 1
+	NEARESTNEIGHBOR = 1
+	SWEEP = 0
 
 	def __str__(self):
 		return self.name
@@ -40,15 +41,15 @@ class Operator(Enum):
 		return self.name
 
 class CostFunction(Enum):
-	ENERGY_CONSUMPTION = 0
-	TIME = 1
+	ENERGY_CONSUMPTION = 1
+	TIME = 0
 
 	def __str__(self):
 		return self.name
 
 class EdgeWeight(Enum):
-	EUCLIDEAN = 0
-	GEOGRAPHIC = 1
+	EUCLIDEAN = 1
+	GEOGRAPHIC = 0
 
 	def __str__(self):
 		return self.name
@@ -62,13 +63,13 @@ class ShowGui(Enum):
 		return self.name
 
 ### part 0: settings
-filename = 'thesis1'							# select vrp file
+filename = 'circle'							# select vrp file
 debug_output = Debug.FULL						# amount of debugging output
 plot_pause = 0.0001							# visualization delay between plot steps
 iterations = 10000							# number of improvement steps
 initial_sln = Initial.NEARESTNEIGHBOR					# initial solution method
 operator_weights = [4, 1, 1, 4]					# weights to change permutation operator rates [TWOOPT, RELOCATE, GLOBAL_RELOCATE, GLOBAL_EXCHANGE]
-cost_function = CostFunction.ENERGY_CONSUMPTION			# the objective function for the optimization
+cost_function = CostFunction.TIME			# the objective function for the optimization
 show_node_numbers = False						# visualizes the node numbers, if true
 weight_murmel = 0.17							# energy consumption kWh per km (MURMEL)
 weight_mothership = 0.27						# energy consumption kWh per km (mothership)
@@ -83,7 +84,7 @@ n_murmels = 3
 cm = 1/2.54								# centimeters in inches
 column_width = 8.4*cm							# width of single paper column
 dpi = 600								# resolution of saved .png figures
-show_gui = ShowGui.OFF							# displays solution, temperature and cost at the end (SOLUTION) or over time (STEPS)
+show_gui = ShowGui.SOLUTION						# displays solution, temperature and cost at the end (SOLUTION) or over time (STEPS)
 draw_changes = False							# displays the last changes with purple dashed lines
 Tmax = 100.0								# initial temperature of annealing schedule
 Tmin = 0.1								# final temperature of annealing schedule
@@ -233,15 +234,6 @@ def draw_nodes(nodes):
 def draw_line(start, end, color, style, legendlabel):
 	return ax1.plot([nodes[start,0], nodes[end,0]],[nodes[start,1], nodes[end,1]], color=color, linestyle=style, label=legendlabel)
 
-def move_figure(f, x, y):
-	backend = matplotlib.get_backend()
-	if backend == 'TkAgg':
-		f.canvas.manager.window.wm_geometry("+%d+%d" % (x, y))
-	elif backend == 'WXAgg':
-		f.canvas.manager.window.SetPosition((x, y))
-	else:
-		# This works for QT and GTK
-		f.canvas.manager.window.move(x, y)
 
 if show_gui != ShowGui.OFF:
 	fig1, ax1 = plt.subplots(1, 1, constrained_layout=True)
@@ -250,9 +242,6 @@ if show_gui != ShowGui.OFF:
 	fig1.set_size_inches(column_width, column_width*1.06)
 	fig2.set_size_inches(column_width, column_width)
 	fig3.set_size_inches(column_width, column_width)
-	move_figure(fig1, 100 + 0*120*column_width, 100)
-	move_figure(fig2, 100 + 1*120*column_width, 100)
-	move_figure(fig3, 100 + 2*120*column_width, 100)
 	draw_nodes(nodes)
 	ax1.yaxis.set_major_locator(plt.MaxNLocator(5)) # avoid yticklabel overlap
 	ax1.set_title('Current solution')
@@ -494,8 +483,6 @@ colors_path = ['gold','limegreen','red', 'black', 'yellow', 'purple', 'brown', '
 murmel_lines = []
 ms_lines = []
 def draw_tour_MA(tour_global, ms_tour, touched):
-	#print (tour_global)
-	#input()
 	# remove old tours (TODO: only touch changed stuff to increase speed)
 	for line in murmel_lines:
 		line[0].remove()
@@ -627,6 +614,8 @@ lambd = math.log(Tmax/Tmin)
 
 # draw initial tours / graphs
 if show_gui != ShowGui.OFF:
+	print (tour_global,ms_tour,[])
+	input()
 	draw_tour_MA(tour_global,ms_tour,[])
 	ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.17), ncol=2)
 	graph = ax2.plot(t, s)

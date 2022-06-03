@@ -89,16 +89,24 @@ def flatten(x):
 		
 def geographic_2d_distance(i, j,nodes_coor):
 	R = 6371  # Earth radius in kilometers
-	dLat = math.radians(nodes_coor[j,0] - nodes_coor[i,0])
-	dLon = math.radians(nodes_coor[j,1] - nodes_coor[i,1])
-	lat1 = math.radians(nodes_coor[i,0])
-	lat2 = math.radians(nodes_coor[j,0])
+	dLat = math.radians(nodes_coor[j,1] - nodes_coor[i,1])
+	dLon = math.radians(nodes_coor[j,0] - nodes_coor[i,0])
+	lat1 = math.radians(nodes_coor[i,1])
+	lat2 = math.radians(nodes_coor[j,1])
 	return 2 * R * math.asin(math.sqrt(math.sin(dLat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2)**2)) #converted in kilometers
 
-def cost_murmel(dist):
-	energy_cost = dist*weight_murmel + energy_unload + energy_compress + energy_emptying
-	time_cost = dist*speed_murmel + time_unload + time_compress + time_emptying
-	return (energy_cost+time_cost)
+def cost_murmel_distance(dist):
+	energy_cost = dist*weight_murmel
+	time_cost = dist*speed_murmel
+	return (energy_cost, time_cost)
+
+def cost_murmel_compressing(bins_empied):
+	energy_cost = (energy_unload + energy_compress + energy_emptying)*bins_empied
+	time_cost =  (time_unload + time_compress + time_emptying)*bins_empied
+	return (energy_cost,time_cost)
+
+def cost_murmel_swap_battery(dist):
+	return dist
 
 def cost_mothership(dist):
 	energy_cost = dist*weight_mothership+energy_dropoff
@@ -179,25 +187,28 @@ def calculate_final(points,capacity):
 		final_route.append(t_nodes_coor[i])
 		#if SD did not exists
 		t_cap.append(capacity[i])
-	#print (t_cap)
-	#print ('*********')
-	temp_cap = t_cap[0] 
 	for i in range (0,len(points)-1):
 		f_dist_cost +=  (dist[points[i], points[i+1]])
+		a = dist[points[i], points[i+1]]
+		b,c = cost_murmel_distance(a)
+		f_energy_cost_bins += b
+		f_time_cost_bins += c
+		#print (t_cap)
+		#print (points[i], points[i+1])
 		#if SD did not exists
-		temp_cap += t_cap[i+1]
-		#print (temp_cap,t_cap[i]+t_cap[i+1],t_cap[i],t_cap[i+1])
-		#print ('-----------')
+		#print (t_cap[i], t_cap[i+1])
+		temp_cap += t_cap[i]  + t_cap[i+1]
 		if temp_cap>=100:
 			temp_cap_2 += 1
-			temp_cap -= 100
-		t_cap[i+1] = temp_cap
-		#print (temp_cap_2,temp_cap)
-		#print ('++++++++++')
-		#input()
+			temp_cap = 0
 	#if SD did not exists
-	f_energy_cost_bins = (energy_unload + energy_compress + energy_emptying) * (temp_cap_2) #TODO compress tie and energy is times the acutal garbage collected
-	f_time_cost_bins   = (time_unload + time_compress + time_emptying)       * (temp_cap_2)
+	#given that the at needs to be emptied 
+	temp_cap_2 = temp_cap_2+1
+	energy_cost_copm, time_cost_copm = cost_murmel_compressing(temp_cap_2)
+	print ('---------')
+	print (f_energy_cost_bins,f_time_cost_bins,energy_cost_copm,time_cost_copm)
+	#f_energy_cost_bins += (energy_unload + energy_compress + energy_emptying) * (temp_cap_2) #TODO compress tie and energy is times the acutal garbage collected
+	#f_time_cost_bins   += (time_unload + time_compress + time_emptying)       * (temp_cap_2)
 	return (temp_cap_2,f_energy_cost_bins,f_time_cost_bins,f_dist_cost,final_route)
 
 def gui(f_route):
@@ -215,7 +226,6 @@ if __name__ == "__main__":
 	print('#Debug info: input file nodes part:')
 	for node in nodes:
 		print ('#   ' + str(node))
-
 	# get nodes specifications in different arrays
 	nodes_num = np.array(nodes)[:,[0]]
 	nodes_coor = np.array(nodes)[:,[1,2]]
@@ -223,14 +233,14 @@ if __name__ == "__main__":
 	nodes_bins_cap = np.full((len(t_nodes_bins_cap),1), 50, dtype=int)
 	# generate cost and value functions for murmel
 	dist = np.zeros((len(nodes_coor), len(nodes_coor)))
-	costs = np.zeros((len(nodes_coor), len(nodes_coor)))
+	#costs = np.zeros((len(nodes_coor), len(nodes_coor)))
 	value = np.zeros((len(nodes_coor), len(nodes_coor)))
 	for i in range(len(nodes_coor)):
 		for j in range(i):
 			dist[i,j] = geographic_2d_distance(i,j,nodes_coor)
 			dist[j,i] = dist[i,j]
-			costs[j,i] = cost_murmel(dist[j,i])
-			costs[i,j] = costs[j,i]
+			#costs[j,i] = cost_murmel(dist[j,i])
+			#costs[i,j] = costs[j,i]
 			value[i,j] = ((nodes_bins_cap[i] +nodes_bins_cap[j])/sum(nodes_bins_cap))/dist[i,j] #the value it is added given its collection
 			value[j,i] = ((nodes_bins_cap[i] +nodes_bins_cap[j])/sum(nodes_bins_cap))/dist[j,i] 
 
@@ -264,19 +274,20 @@ if __name__ == "__main__":
 		#chnage value list to last point
 		value_current = c_values[num_visited[-1]].tolist()
 	#calculate final path on energy time and distance
-	#num_visited = [0, 1, 4, 2, 3, 9, 5, 6, 19, 20, 21, 22, 23, 24, 25, 27, 26, 28, 29, 51, 50, 52, 53, 62, 61, 60, 40, 39, 38, 37, 36, 30, 31, 32, 43, 44, 33, 34, 35, 45, 46, 59, 58, 57, 55, 56, 54, 47, 48, 42, 41, 49, 17, 18, 11, 12, 13, 14, 15, 16, 78, 77, 80, 79, 84, 81, 83, 82, 86, 63, 65, 64, 66, 10, 8, 7, 69, 70, 76, 75, 74, 73, 72, 71, 67, 68, 85]
+	num_visited = [0, 1, 4, 2, 3, 9, 5, 6, 19, 20, 21, 22, 23, 24, 25, 27, 26, 28, 29, 51, 50, 52, 53, 62, 61, 60, 40, 39, 38, 37, 36, 30, 31, 32, 43, 44, 33, 34, 35, 45, 46, 59, 58, 57, 55, 56, 54, 47, 48, 42, 41, 49, 17, 18, 11, 12, 13, 14, 15, 16, 78, 77, 80, 79, 84, 81, 83, 82, 86, 63, 65, 64, 66, 10, 8, 7, 69, 70, 76, 75, 74, 73, 72, 71, 67, 68, 85]
+	t_nodes_bins_cap = [0,95,54,57,75,83,55,59,50,89,60,65,59,69,97,74,79,79,76,57,30,86,100,20,57,48,61,75,88,69,67,55,94,72,60,100,60,91,50,79,76,5,65,67,59,60,23,78,58,64,96,72,89,59,78,50,66,95,82,75,24,70,92,19,79,74,64,86,67,72,53,60,28,54,78,52,0,3,93,7,4,51,71,85,55,6,14]
 	f_cap, f_energy,f_time,f_distance, f_route = calculate_final(num_visited,t_nodes_bins_cap)
-	if show_gui:
-		gui(f_route)
 
 	print('Visited Ndes: ',num_visited)
 	print ('Visited Ndes with cap: ',num_visited_cap)
-	print ('Visited Ndes: ',f_cap)
+	print ('Number of dustbins:', len(num_visited))
+	print ('Emptying times: ',f_cap)
 	print ('Energy in KWhs: ',f_energy)
 	print ('Time in hrs: ', f_time)
 	print ('Distance in km: ',f_distance) #, f_route)
 	print ('Finished')
-		
+	if show_gui:
+		gui(f_route)		
 
 #TODO Next
 #1 complete the total cost of the path
