@@ -1,0 +1,193 @@
+import sys
+from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAction, QTabWidget,QVBoxLayout,QComboBox,QLabel,QGridLayout,QLineEdit
+from PyQt5.QtGui import QIcon
+
+from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtCore import Qt
+
+class App(QMainWindow):
+
+    def __init__(self):
+        super().__init__()
+        self.title = 'MURMEL Rute Planning'
+        self.left = 0
+        self.top = 0
+        self.width = 500
+        self.height = 300
+        self.setWindowTitle(self.title)
+        self.setGeometry(self.left, self.top, self.width, self.height)
+        
+        self.table_widget = MyTableWidget(self)
+        self.setCentralWidget(self.table_widget)
+        
+        self.show()
+    
+class MyTableWidget(QWidget):
+    
+    def __init__(self, parent):
+        super(QWidget, self).__init__(parent)
+        self.layout = QVBoxLayout(self)
+        
+        # Initialize tab screen
+        self.tabs = QTabWidget()
+        self.tab1 = QWidget()
+        self.tab2 = QWidget()
+        self.tab3 = QWidget()
+        
+        # Add tabs
+        self.tabs.addTab(self.tab1,"Pre-Launch")
+        self.tabs.addTab(self.tab2,"Active")
+        self.tabs.addTab(self.tab3,"Post-Launch")
+        
+        # Create 1st tab
+        self.tab1.layout = QGridLayout(self.tab1)
+        self.tab1.cb  = QComboBox(self)
+        self.tab1.cb2 = QComboBox(self)
+        self.tab1.cb3 = QComboBox(self)
+        self.tab1.cb4 = QComboBox(self)
+        self.tab1.ln1 = QLineEdit(self)
+        self.tab1.ln1.setReadOnly(True)
+        self.tab1.ln2 = QLineEdit(self)
+        self.tab1.ln2.setReadOnly(True)
+        self.tab1.ln3 = QLineEdit(self)
+        self.tab1.ln3.setReadOnly(True)
+        self.tab1.ln4 = QLineEdit(self)
+        self.tab1.ln4.setReadOnly(True)
+        self.tab1.label1 = QLabel("Solution Algorthim",self)
+        self.tab1.cb.addItems(["Simulated Annealing", "Knapsack"])
+        self.tab1.label2 = QLabel("Initial Solution",self)
+        self.tab1.cb2.addItems(["Nearest Neighbour", "Sweeping"])
+        self.tab1.label3 = QLabel("Scenario",self)
+        self.tab1.cb3.addItems(["Moabit86", "Moabit220", "Mouint Jou Park"])
+        self.tab1.label4 = QLabel("Number of MUERMELS",self)
+        self.tab1.cb4.addItems(["1", "2", "3"])
+        self.tab1.pushButton1 = QPushButton("Calculate")
+        self.tab1.label5 = QLabel("Total Traveling Distance",self)
+        self.tab1.label6 = QLabel("Solution Energy",self)
+        self.tab1.label7 = QLabel("Solution Time",self)
+        self.tab1.label8 = QLabel("Number of Dustbins",self)
+        self.tab1.layout.addWidget(self.tab1.label1,0,0)
+        self.tab1.layout.addWidget(self.tab1.label5,0,1)
+        self.tab1.layout.addWidget(self.tab1.ln1,1,1)
+        self.tab1.layout.addWidget(self.tab1.cb, 1,0)
+        self.tab1.layout.addWidget(self.tab1.label2,2,0)
+        self.tab1.layout.addWidget(self.tab1.label6,2,1)
+        self.tab1.layout.addWidget(self.tab1.ln2,3,1)
+        self.tab1.layout.addWidget(self.tab1.cb2, 3,0)
+        self.tab1.layout.addWidget(self.tab1.label3,4,0)
+        self.tab1.layout.addWidget(self.tab1.label7,4,1)
+        self.tab1.layout.addWidget(self.tab1.ln3,5,1)
+        self.tab1.layout.addWidget(self.tab1.cb3, 5,0)
+        self.tab1.layout.addWidget(self.tab1.label4,6,0)
+        self.tab1.layout.addWidget(self.tab1.label8,6,1)
+        self.tab1.layout.addWidget(self.tab1.ln4,7,1)
+        self.tab1.layout.addWidget(self.tab1.cb4, 7,0)
+        self.tab1.layout.addWidget(self.tab1.pushButton1,8,0)
+        self.tab1.pushButton1.clicked.connect(self.on_click)
+        self.tab1.setLayout(self.tab1.layout)
+        
+        # Create 2nd tab
+        self.tab2.layout = QGridLayout(self.tab2)
+        self.tab2.cb  = QComboBox(self)
+        self.tab2.cb2 = QComboBox(self)
+        self.tab2.cb3 = QComboBox(self)
+        self.tab2.cb4 = QComboBox(self)
+        self.tab2.ln1 = QLineEdit(self)
+        self.tab2.ln1.setReadOnly(True)
+        self.tab2.ln2 = QLineEdit(self)
+        self.tab2.ln2.setReadOnly(True)
+        self.tab2.ln3 = QLineEdit(self)
+        self.tab2.ln3.setReadOnly(True)
+        self.tab2.ln4 = QLineEdit(self)
+        self.tab2.ln4.setReadOnly(True)
+        self.tab2.label1 = QLabel("Solution Algorthim",self)
+        self.tab2.cb.addItems(["Simulated Annealing", "Knapsack"])
+        self.tab2.label2 = QLabel("Initial Solution",self)
+        self.tab2.cb2.addItems(["Nearest Neighbour", "Sweeping"])
+        self.tab2.label3 = QLabel("Scenario",self)
+        self.tab2.cb3.addItems(["Moabit86", "Moabit220", "Mouint Jou Park"])
+        self.tab2.label4 = QLabel("Number of MUERMELS",self)
+        self.tab2.cb4.addItems(["1", "2", "3"])
+        self.tab2.label5 = QLabel("Total Traveling Distance",self)
+        self.tab2.label6 = QLabel("Solution Energy",self)
+        self.tab2.label7 = QLabel("Solution Time",self)
+        self.tab2.label8 = QLabel("Number of Dustbins",self)
+        self.tab2.layout.addWidget(self.tab2.label1,0,0)
+        self.tab2.layout.addWidget(self.tab2.label5,0,1)
+        self.tab2.layout.addWidget(self.tab2.ln1,1,1)
+        self.tab2.layout.addWidget(self.tab2.cb, 1,0)
+        self.tab2.layout.addWidget(self.tab2.label2,2,0)
+        self.tab2.layout.addWidget(self.tab2.label6,2,1)
+        self.tab2.layout.addWidget(self.tab2.ln2,3,1)
+        self.tab2.layout.addWidget(self.tab2.cb2, 3,0)
+        self.tab2.layout.addWidget(self.tab2.label3,4,0)
+        self.tab2.layout.addWidget(self.tab2.label7,4,1)
+        self.tab2.layout.addWidget(self.tab2.ln3,5,1)
+        self.tab2.layout.addWidget(self.tab2.cb3, 5,0)
+        self.tab2.layout.addWidget(self.tab2.label4,6,0)
+        self.tab2.layout.addWidget(self.tab2.label8,6,1)
+        self.tab2.layout.addWidget(self.tab2.ln4,7,1)
+        self.tab2.layout.addWidget(self.tab2.cb4, 7,0)
+        self.tab2.setLayout(self.tab2.layout)
+
+# Create 2nd tab
+        self.tab3.layout = QGridLayout(self.tab3)
+        self.tab3.cb  = QComboBox(self)
+        self.tab3.cb2 = QComboBox(self)
+        self.tab3.cb3 = QComboBox(self)
+        self.tab3.cb4 = QComboBox(self)
+        self.tab3.ln1 = QLineEdit(self)
+        self.tab3.ln1.setReadOnly(True)
+        self.tab3.ln2 = QLineEdit(self)
+        self.tab3.ln2.setReadOnly(True)
+        self.tab3.ln3 = QLineEdit(self)
+        self.tab3.ln3.setReadOnly(True)
+        self.tab3.ln4 = QLineEdit(self)
+        self.tab3.ln4.setReadOnly(True)
+        self.tab3.label1 = QLabel("Solution Algorthim",self)
+        self.tab3.cb.addItems(["Simulated Annealing", "Knapsack"])
+        self.tab3.label2 = QLabel("Initial Solution",self)
+        self.tab3.cb2.addItems(["Nearest Neighbour", "Sweeping"])
+        self.tab3.label3 = QLabel("Scenario",self)
+        self.tab3.cb3.addItems(["Moabit86", "Moabit220", "Mouint Jou Park"])
+        self.tab3.label4 = QLabel("Number of MUERMELS",self)
+        self.tab3.cb4.addItems(["1", "2", "3"])
+        self.tab3.label5 = QLabel("Total Traveling Distance",self)
+        self.tab3.label6 = QLabel("Solution Energy",self)
+        self.tab3.label7 = QLabel("Solution Time",self)
+        self.tab3.label8 = QLabel("Number of Dustbins",self)
+        self.tab3.layout.addWidget(self.tab3.label1,0,0)
+        self.tab3.layout.addWidget(self.tab3.label5,0,1)
+        self.tab3.layout.addWidget(self.tab3.ln1,1,1)
+        self.tab3.layout.addWidget(self.tab3.cb, 1,0)
+        self.tab3.layout.addWidget(self.tab3.label2,2,0)
+        self.tab3.layout.addWidget(self.tab3.label6,2,1)
+        self.tab3.layout.addWidget(self.tab3.ln2,3,1)
+        self.tab3.layout.addWidget(self.tab3.cb2, 3,0)
+        self.tab3.layout.addWidget(self.tab3.label3,4,0)
+        self.tab3.layout.addWidget(self.tab3.label7,4,1)
+        self.tab3.layout.addWidget(self.tab3.ln3,5,1)
+        self.tab3.layout.addWidget(self.tab3.cb3, 5,0)
+        self.tab3.layout.addWidget(self.tab3.label4,6,0)
+        self.tab3.layout.addWidget(self.tab3.label8,6,1)
+        self.tab3.layout.addWidget(self.tab3.ln4,7,1)
+        self.tab3.layout.addWidget(self.tab3.cb4, 7,0)
+        self.tab3.setLayout(self.tab3.layout)
+
+        # Add tabs to widget
+        self.layout.addWidget(self.tabs)
+        self.setLayout(self.layout)
+        
+    @pyqtSlot()
+    def on_click(self):
+        print("HELOOOO")
+        print(self.tab1.cb.currentText())
+        print(self.tab1.cb2.currentText())
+        print(self.tab1.cb3.currentText())
+        print(self.tab1.cb4.currentText())
+        self.tab1.ln1.setText("-------")
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    ex = App()
+    sys.exit(app.exec_())

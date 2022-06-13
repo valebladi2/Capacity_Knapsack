@@ -176,8 +176,8 @@ def calculate_final(points,capacity):
 	# calculate the final cost energy, time and distance 
 	final_route = []
 	f_dist_cost = 0
-	f_energy_cost_bins = 0
-	f_time_cost_bins = 0
+	d_energy_cost_bins = 0
+	d_time_cost_bins = 0
 	t_nodes_coor = nodes_coor.tolist()
 	# if SD did not exists
 	t_cap = []
@@ -191,8 +191,8 @@ def calculate_final(points,capacity):
 		f_dist_cost +=  (dist[points[i], points[i+1]])
 		a = dist[points[i], points[i+1]]
 		b,c = cost_murmel_distance(a)
-		f_energy_cost_bins += b
-		f_time_cost_bins += c
+		d_energy_cost_bins += b
+		d_time_cost_bins += c
 		#print (t_cap)
 		#print (points[i], points[i+1])
 		#if SD did not exists
@@ -206,7 +206,10 @@ def calculate_final(points,capacity):
 	temp_cap_2 = temp_cap_2+1
 	energy_cost_copm, time_cost_copm = cost_murmel_compressing(temp_cap_2)
 	print ('---------')
-	print (f_energy_cost_bins,f_time_cost_bins,energy_cost_copm,time_cost_copm)
+	print (d_energy_cost_bins,d_time_cost_bins,energy_cost_copm,time_cost_copm)
+	print (d_energy_cost_bins,d_time_cost_bins,energy_cost_copm,time_cost_copm)
+	f_energy_cost_bins = d_energy_cost_bins+energy_cost_copm
+	f_time_cost_bins = d_time_cost_bins+time_cost_copm
 	#f_energy_cost_bins += (energy_unload + energy_compress + energy_emptying) * (temp_cap_2) #TODO compress tie and energy is times the acutal garbage collected
 	#f_time_cost_bins   += (time_unload + time_compress + time_emptying)       * (temp_cap_2)
 	return (temp_cap_2,f_energy_cost_bins,f_time_cost_bins,f_dist_cost,final_route)

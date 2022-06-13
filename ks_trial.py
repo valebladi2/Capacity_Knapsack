@@ -100,6 +100,7 @@ def cost_murmel_distance(dist):
 	return (energy_cost, time_cost)
 
 def cost_murmel_compressing(bins_empied):
+	#add cost of ms and murmel traveling to get together (decide on how will it be) 
 	energy_cost = (energy_unload + energy_compress + energy_emptying)*bins_empied
 	time_cost =  (time_unload + time_compress + time_emptying)*bins_empied
 	return (energy_cost,time_cost)
@@ -175,8 +176,8 @@ def calculate_final(points_cap,points,capacity):
 	# calculate the final cost energy, time and distance 
 	final_route = []
 	f_dist_cost = 0
-	f_energy_cost_bins = 0
-	f_time_cost_bins = 0
+	d_energy_cost_bins = 0
+	d_time_cost_bins = 0
 	f_cap = len(points_cap)-1
 	t_nodes_coor = nodes_coor.tolist()
 	for i in points:
@@ -185,11 +186,13 @@ def calculate_final(points_cap,points,capacity):
 		f_dist_cost +=  (dist[points[i], points[i+1]])
 		a = dist[points[i], points[i+1]]
 		b,c = cost_murmel_distance(a)
-		f_energy_cost_bins += b
-		f_time_cost_bins += c
+		d_energy_cost_bins += b
+		d_time_cost_bins += c
 	energy_cost_copm, time_cost_copm = cost_murmel_compressing(f_cap)
 	print ('---------')
-	print (f_energy_cost_bins,f_time_cost_bins,energy_cost_copm,time_cost_copm)
+	print (d_energy_cost_bins,d_time_cost_bins,energy_cost_copm,time_cost_copm)
+	f_energy_cost_bins = d_energy_cost_bins+energy_cost_copm
+	f_time_cost_bins = d_time_cost_bins+time_cost_copm
 	#f_energy_cost_bins += (energy_unload + energy_compress + energy_emptying) * (len(points_cap)-1) #TODO compress tie and energy is times the acutal garbage collected
 	#f_time_cost_bins   += (time_unload + time_compress + time_emptying)       * (len(points_cap)-1)
 	return (f_cap,f_energy_cost_bins,f_time_cost_bins,f_dist_cost,final_route)
