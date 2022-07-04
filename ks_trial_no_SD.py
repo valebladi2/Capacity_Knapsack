@@ -14,7 +14,9 @@ Dynamic Knapsack Problem, returns the maximum value that can be put in a knapsac
 filename = 'moabit_test4'						# select vrp file
 show_gui = True
 ### MURMEL
-weight_murmel = 0.17							# energy consumption kWh per km (MURMEL)
+weight_murmel_loc = 0.095						# energy consumption mobility of MURMEL
+weight_murmel_bin = 0.017						# energy consumption per bin
+weight_murmel_cst = 0							#(weight_murmel_loc + weight_murmel_bin)*30/70, energy consumption of constant varibles (equipment)				
 speed_murmel= 1/3.24							# time per distance in h per km (MURMEL) based on 0.9 m/s maximum speed in Urbanek bachelor thesis
 murmel_capacity = 50						# on average, a mothership visit is necessary every 'murmel_capacity's waypoint
 #### Time
@@ -30,6 +32,7 @@ weight_mothership = 0.27						# energy consumption kWh per km (mothership)
 speed_mothership = 1/50							# time per distance in h per km (mothership)
 time_dropoff = 1/60								# time to empty Murmels load into mothership in hr
 energy_dropoff = 0								# TODO
+battery_capacity = 960							# capacity of battery in kWh
 
 ## part 0.1: globla vairables 
 nodes = []
@@ -96,12 +99,13 @@ def geographic_2d_distance(i, j,nodes_coor):
 	return 2 * R * math.asin(math.sqrt(math.sin(dLat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2)**2)) #converted in kilometers
 
 def cost_murmel_distance(dist):
-	energy_cost = dist*weight_murmel
+	energy_cost = dist*weight_murmel_loc
 	time_cost = dist*speed_murmel
 	return (energy_cost, time_cost)
 
 def cost_murmel_compressing(bins_empied):
-	energy_cost = (energy_unload + energy_compress + energy_emptying)*bins_empied
+	#add cost of ms and murmel traveling to get together (decide on how will it be) 
+	energy_cost = weight_murmel_bin*bins_empied
 	time_cost =  (time_unload + time_compress + time_emptying)*bins_empied
 	return (energy_cost,time_cost)
 
@@ -176,8 +180,8 @@ def calculate_final(points,capacity):
 	# calculate the final cost energy, time and distance 
 	final_route = []
 	f_dist_cost = 0
-	d_energy_cost_bins = 0
-	d_time_cost_bins = 0
+	d_energy_cost_loc = 0
+	d_time_cost_loc = 0
 	t_nodes_coor = nodes_coor.tolist()
 	# if SD did not exists
 	t_cap = []
@@ -191,8 +195,8 @@ def calculate_final(points,capacity):
 		f_dist_cost +=  (dist[points[i], points[i+1]])
 		a = dist[points[i], points[i+1]]
 		b,c = cost_murmel_distance(a)
-		d_energy_cost_bins += b
-		d_time_cost_bins += c
+		d_energy_cost_loc += b
+		d_time_cost_loc += c
 		#print (t_cap)
 		#print (points[i], points[i+1])
 		#if SD did not exists
@@ -204,12 +208,12 @@ def calculate_final(points,capacity):
 	#if SD did not exists
 	#given that the at needs to be emptied 
 	temp_cap_2 = temp_cap_2+1
-	energy_cost_copm, time_cost_copm = cost_murmel_compressing(temp_cap_2)
+	energy_cost_bin, time_cost_bin = cost_murmel_compressing(temp_cap_2)
 	print ('---------')
-	print (d_energy_cost_bins,d_time_cost_bins,energy_cost_copm,time_cost_copm)
-	print (d_energy_cost_bins,d_time_cost_bins,energy_cost_copm,time_cost_copm)
-	f_energy_cost_bins = d_energy_cost_bins+energy_cost_copm
-	f_time_cost_bins = d_time_cost_bins+time_cost_copm
+	print (d_energy_cost_loc,energy_cost_bin,d_time_cost_loc,time_cost_bin)
+	weight_murmel_cst = (d_energy_cost_loc + energy_cost_bin)*30/70
+	f_energy_cost_bins = d_energy_cost_loc+energy_cost_bin+weight_murmel_cst
+	f_time_cost_bins = d_time_cost_loc+time_cost_bin
 	#f_energy_cost_bins += (energy_unload + energy_compress + energy_emptying) * (temp_cap_2) #TODO compress tie and energy is times the acutal garbage collected
 	#f_time_cost_bins   += (time_unload + time_compress + time_emptying)       * (temp_cap_2)
 	return (temp_cap_2,f_energy_cost_bins,f_time_cost_bins,f_dist_cost,final_route)
@@ -277,8 +281,8 @@ if __name__ == "__main__":
 		#chnage value list to last point
 		value_current = c_values[num_visited[-1]].tolist()
 	#calculate final path on energy time and distance
-	num_visited = [0, 1, 4, 2, 3, 9, 5, 6, 19, 20, 21, 22, 23, 24, 25, 27, 26, 28, 29, 51, 50, 52, 53, 62, 61, 60, 40, 39, 38, 37, 36, 30, 31, 32, 43, 44, 33, 34, 35, 45, 46, 59, 58, 57, 55, 56, 54, 47, 48, 42, 41, 49, 17, 18, 11, 12, 13, 14, 15, 16, 78, 77, 80, 79, 84, 81, 83, 82, 86, 63, 65, 64, 66, 10, 8, 7, 69, 70, 76, 75, 74, 73, 72, 71, 67, 68, 85]
-	t_nodes_bins_cap = [0,95,54,57,75,83,55,59,50,89,60,65,59,69,97,74,79,79,76,57,30,86,100,20,57,48,61,75,88,69,67,55,94,72,60,100,60,91,50,79,76,5,65,67,59,60,23,78,58,64,96,72,89,59,78,50,66,95,82,75,24,70,92,19,79,74,64,86,67,72,53,60,28,54,78,52,0,3,93,7,4,51,71,85,55,6,14]
+	#num_visited = [{0,3,2,4,6,5,8,7,10,9,11,12,13,14,15,16,17,18,19,20,21,23,22,24,123,124,25,125,27,26,28,29,30,34,35,36,37,38,39,33,32,31,47,48,44,42,40,41,43,45,46,120,122,121,50,49,53,51,52,54,55,59,57,58,56,60,63,64,65,61,66,67,62,68,71,72,73,75,76,77,78,80,79,81,74,70,69,86,85,87,97,88,96,84,89,94,90,93,91,92,100,98,101,99,102,103,104,106,105,107,108,110,111,109,113,112,114,116,118,115,117,119,179,181,180,182,183,184,185,186,187,189,188,190,178,177,176,175,174,173,171,172,170,169,168,167,166,165,163,164,143,142,141,144,145,146,152,153,151,148,150,147,149,161,160,159,155,158,162,157,156,154,133,139,132,131,130,129,136,135,137,134,138,140,82,83,95,128,127,126,1,191,192,210,211,212,213,209,208,207,204,202,206,201,200,199,198,203,196,197,195,194,193,205]
+	#t_nodes_bins_cap = [0,64,18,14,70,78,72,95,81,67,96,69,84,88,65,79,43,30,22,14,53,52,57,19,6,2,29,75,74,45,46,39,8,90,92,14,14,58,55,96,93,52,41,5,11,84,18,37,20,7,56,100,14,15,48,12,100,23,61,7,60,61,46,94,36,33,49,5,2,70,18,43,78,72,51,91,78,77,93,50,64,6,59,58,83,70,5,6,65,51,74,25,72,78,28,79,69,55,3,21,48,11,59,64,71,12,54,4,65,20,4,6,83,58,62,100,4,31,87,8,3,29,38,25,28,33,47,31,89,25,31,69,6,18,65,71,6,15,32,23,24,56,87,10,64,98,27,21,34,5,66,50,5,95,19,63,72,57,66,40,90,93,84,5,52,56,5,64,56,47,100,19,70,97,96,32,27,76,84,24,92,42,6,31,39,5,69,46,38,88,11,59,97,77,41,9,1,53,19,98,99,40,4,99,56,8,47,84,53,64,95,11,63,82]
 	f_cap, f_energy,f_time,f_distance, f_route = calculate_final(num_visited,t_nodes_bins_cap)
 
 	print('Visited Ndes: ',num_visited)
@@ -297,4 +301,5 @@ if __name__ == "__main__":
 #2 add mother ship
 #3 calibrate cost function to get a good cost-benefit trade off
 # make a conection between the price we have for energy and time so we can correlate energy and time 
-#4 have the base case, which is having 50% and stops at every 2nd bin 
+#4 add a cost function for the battery
+

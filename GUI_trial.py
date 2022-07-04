@@ -1,9 +1,99 @@
 import sys
+import numpy as np
+from matplotlib.backends.qt_compat import QtCore, QtGui, QtWidgets
+from matplotlib.backends.backend_qt5agg import FigureCanvas
+from matplotlib.figure import Figure
+
+def onclick(event):
+    global clicks
+    clicks.append(event.xdata)
+
+class ApplicationWindow(QtWidgets.QMainWindow):
+    def __init__(self):
+        super(ApplicationWindow, self).__init__()
+        self._title = 'Prueba real-time'
+        self.setWindowTitle(self._title)
+
+        self._main = QtWidgets.QWidget()
+        self.setCentralWidget(self._main)
+        
+        dynamic_canvas = FigureCanvas(Figure(figsize=(10, 10)))
+        self._dynamic_ax = dynamic_canvas.figure.subplots()
+        dynamic_canvas.figure.canvas.mpl_connect('button_press_event', onclick)
+        self._dynamic_ax.grid()
+        self._timer = dynamic_canvas.new_timer(
+            100, [(self._update_window, (), {})])
+        self._timer.start()
+
+        button_stop = QtWidgets.QPushButton('Stop', self)
+        
+        button_stop.clicked.connect(self._timer.stop)
+
+        button_start = QtWidgets.QPushButton('Start', self)
+        
+        button_start.clicked.connect(self._timer.start)
+
+        self.table_clicks = QtWidgets.QTableWidget(0, 2)
+        self.table_clicks.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+
+        other_widget = QtWidgets.QLabel("Other widgets", 
+            font=QtGui.QFont("Times", 60, QtGui.QFont.Bold), 
+            alignment=QtCore.Qt.AlignCenter)
+        
+        # layouts
+
+        layout = QtWidgets.QGridLayout(self._main)
+
+        layout.addWidget(dynamic_canvas, 0, 0)
+        layout.addWidget(self.table_clicks, 0, 1)
+        layout.addWidget(other_widget, 1, 0)
+
+        button_layout = QtWidgets.QVBoxLayout()
+        button_layout.addWidget(button_stop)
+        button_layout.addWidget(button_start)        
+
+        layout.addLayout(button_layout, 1, 1)
+
+        layout.setColumnStretch(0, 2)
+        layout.setColumnStretch(1, 1)
+
+    def _update_window(self):
+        self._dynamic_ax.clear()
+        global x, y1, y2, y3, N, count_iter, last_number_clicks
+        x.append(x[count_iter] + 0.01)
+        y1.append(np.random.random())
+        idx_inf = max([count_iter-N, 0])
+        if last_number_clicks < len(clicks):
+            for new_click in clicks[last_number_clicks:(len(clicks))]:
+                rowPosition = self.table_clicks.rowCount()
+                self.table_clicks.insertRow(rowPosition)
+                self.table_clicks.setItem(rowPosition,0, QtWidgets.QTableWidgetItem(str(new_click)))
+                self.table_clicks.setItem(rowPosition,1, QtWidgets.QTableWidgetItem("Descripcion"))
+            last_number_clicks = len(clicks)
+        self._dynamic_ax.plot(x[idx_inf:count_iter], y1[idx_inf:count_iter],'-o', color='b')
+        count_iter += 1
+        self._dynamic_ax.figure.canvas.draw()
+
+if __name__ == "__main__":
+    pressed_key = {}
+    clicks = []
+    last_number_clicks = len(clicks)
+    N = 25
+    y1 = [np.random.random()]
+    x = [0]
+    count_iter = 0
+    qapp = QtWidgets.QApplication(sys.argv)
+    app = ApplicationWindow()
+    app.show()
+    sys.exit(qapp.exec_())
+
+
+'''
+import sys
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAction, QTabWidget,QVBoxLayout,QComboBox,QLabel,QGridLayout,QLineEdit
 from PyQt5.QtGui import QIcon
 
 from PyQt5.QtCore import pyqtSlot
-from PyQt5.QtCore import Qt
 
 class App(QMainWindow):
 
@@ -40,12 +130,7 @@ class MyTableWidget(QWidget):
         self.tabs.resize(300,200)
         
         # Add tabs
-        '''
-        self.tabs.addTab(self.tab1,"Pre-Launch")
-        self.tabs.addTab(self.tab2,"Active")
-        self.tabs.addTab(self.tab3,"Post-Launch")        
-        '''
-        # Create first tab
+     # Create first tab
     def preLaunch(self):
         tab1 = QWidget()
         layout = QVBoxLayout()
@@ -113,3 +198,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = App()
     sys.exit(app.exec_())
+'''

@@ -1,9 +1,18 @@
 import sys
-from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAction, QTabWidget,QVBoxLayout,QComboBox,QLabel,QGridLayout,QLineEdit
-from PyQt5.QtGui import QIcon
+#import io
+from PyQt5.QtWidgets import QTableWidgetItem,QMainWindow, QApplication, QPushButton, QWidget, QAction, QTabWidget,QVBoxLayout,QComboBox,QLabel,QGridLayout,QLineEdit
+#from PyQt5.QtGui import QIcon
 
 from PyQt5.QtCore import pyqtSlot
-from PyQt5.QtCore import Qt
+#from PyQt5.QtWebEngineWidgets import QWebEngineView 
+import numpy as np
+from matplotlib.backends.backend_qt5agg import FigureCanvas
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt	
+import ks_trial
+
+#import folium # pip install folium
+
 
 class App(QMainWindow):
 
@@ -12,11 +21,10 @@ class App(QMainWindow):
         self.title = 'MURMEL Rute Planning'
         self.left = 0
         self.top = 0
-        self.width = 500
-        self.height = 300
+        self.width = 870
+        self.height = 500
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
-        
         self.table_widget = MyTableWidget(self)
         self.setCentralWidget(self.table_widget)
         
@@ -83,7 +91,15 @@ class MyTableWidget(QWidget):
         self.tab1.layout.addWidget(self.tab1.ln4,7,1)
         self.tab1.layout.addWidget(self.tab1.cb4, 7,0)
         self.tab1.layout.addWidget(self.tab1.pushButton1,8,0)
+        dynamic_canvas = FigureCanvas(Figure(figsize=(9, 5)))
+        self.tab1._dynamic_ax = dynamic_canvas.figure.subplots()
+        self.tab1._dynamic_ax.tick_params(labelsize=6)
+        self.tab1._dynamic_ax.grid()
+        self.tab1._dynamic_ax.plot(x,y,'-o', color='black')
+        #self.tab1._timer = dynamic_canvas.new_timer(100, [(self._update_window, (), {})])
+        #self.tab1._timer.start()
         self.tab1.pushButton1.clicked.connect(self.on_click)
+        self.tab1.layout.addWidget(dynamic_canvas, 0, 3,15,4)
         self.tab1.setLayout(self.tab1.layout)
         
         # Create 2nd tab
@@ -130,7 +146,7 @@ class MyTableWidget(QWidget):
         self.tab2.layout.addWidget(self.tab2.cb4, 7,0)
         self.tab2.setLayout(self.tab2.layout)
 
-# Create 2nd tab
+        # Create 3rd tab
         self.tab3.layout = QGridLayout(self.tab3)
         self.tab3.cb  = QComboBox(self)
         self.tab3.cb2 = QComboBox(self)
@@ -177,7 +193,17 @@ class MyTableWidget(QWidget):
         # Add tabs to widget
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
-        
+    
+    def _update_window(self):
+        self.tab1._dynamic_ax.clear()
+        global x, y #, y2, y3, N, count_iter, last_number_clicks
+        #x.append(x[count_iter] + 0.01)
+        #y1.append(np.random.random())
+        #idx_inf = max([count_iter-N, 0])
+        self.tab1._dynamic_ax.plot(x,y)
+        #count_iter += 1
+        self.tab1._dynamic_ax.figure.canvas.draw()
+
     @pyqtSlot()
     def on_click(self):
         print("HELOOOO")
@@ -188,6 +214,20 @@ class MyTableWidget(QWidget):
         self.tab1.ln1.setText("-------")
 
 if __name__ == '__main__':
+    #pressed_key = {}
+    #clicks = []
+    #last_number_clicks = len(clicks)
+    #N = 25
+    #y1 = [np.random.random()]
+    #x = [0]
+    #count_iter = 0
+    f_route = np.array(ks_trial.f_route)
+    x = f_route[:,1] #lon
+    y = f_route[:,0] #lat
+    #x = [13.34270598,13.34233706,13.33920884,13.33991503,13.33841079,13.3442691,13.35111111,13.35135288,13.35145139,13.35165766,13.35312095,13.33616661,13.3532823,13.35001144,13.35002178,13.35002642,13.34977776,13.34649924,13.3345659,13.34526884,13.34551357,13.34405863,13.34513639,13.3363824,13.33656147,13.33731384,13.33444444,13.33416667,13.33444444,13.33511097,13.33527778,13.33594557,13.33614326,13.33600072,13.33581217,13.33630281,13.33690426,13.33744376,13.33835885,13.34613734,13.34671365,13.34523743,13.34485096,13.34651478,13.35340122,13.33928379,13.33926014,13.338549,13.33807022,13.3373762,13.33668686,13.33613094,13.3343753,13.33479262,13.33384911,13.33433527,13.33472222,13.33519697,13.33987827,13.34045718,13.34088179,13.34170416,13.34216873,13.34279518,13.34145502,13.34145301,13.34145964,13.34147376,13.34145566,13.34121807,13.341461,13.34014664,13.33992987,13.33990075,13.34012036,13.33988681,13.34063178,13.34061383,13.33988282,13.34007645,13.33987386,13.34001341,13.33984945,13.33888889,13.34121078,13.34526557,13.34526122]
+    #y = [52.52841649,52.52818661,52.53212366,52.53160597,52.53284736,52.53241665, 52.52901199,52.52901619,52.52732931,52.52732018,52.52772173,52.53305018, 52.52699385,52.52913957,52.52699684,52.52769432,52.52913951,52.53328832, 52.53265722,52.52795176,52.52807604,52.53212215,52.53262458,52.53174174, 52.53243477,52.53296238,52.5313212 ,52.53101664,52.53039141,52.53055556, 52.53034364,52.52984154,52.529794,52.5290024 ,52.52902199,52.52860124, 52.52843635,52.52848975,52.52874938,52.53332643,52.53359008,52.53290376, 52.53369774,52.53553433,52.53668597,52.53028613,52.53003406,52.52959236, 52.53015929,52.53022358,52.5302711 ,52.53087487,52.53188674,52.53257988, 52.52964027,52.52879117,52.52855278,52.5286982 ,52.52847022,52.52819594, 52.52819357,52.52806806,52.52807619,52.52809571,52.52858405,52.52943333, 52.53013333,52.53069686,52.53111111,52.53105693,52.53183003,52.53188185, 52.53210656,52.53110167,52.53064745,52.53046789,52.52990327,52.53007269, 52.52968148,52.52907325,52.52906238,52.52731102,52.527287,52.53084744, 52.53326332,52.52910393,52.52690597]
+    #print(ks_trial.f_route)
     app = QApplication(sys.argv)
     ex = App()
     sys.exit(app.exec_())
+
