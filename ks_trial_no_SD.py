@@ -48,9 +48,7 @@ params = {'legend.fontsize': fsize*0.8,
           'axes.titlesize': fsize,
           'xtick.labelsize': fsize*0.8,
           'ytick.labelsize': fsize*0.8,
-          'axes.titlepad': fsize*1.5,
-          'font.family': 'serif',
-          'font.serif': ['cmr10']}
+          'axes.titlepad': fsize*1.5}
 plt.rcParams.update(params)
 
 
