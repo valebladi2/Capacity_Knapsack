@@ -17,7 +17,6 @@ show_gui = True
 speed_murmel= 1/3.24							# time per distance in h per km (MURMEL) based on 0.9 m/s maximum speed in Urbanek bachelor thesis
 energy_murmel_loc = 0.095						# energy consumption mobility of MURMEL in KWh
 energy_murmel_bin = 0.017						# energy consumption per bin in KWh
-weight_murmel_cst = 0							#(energy_murmel_loc + energy_murmel_bin)*30/70, energy consumption of constant varibles (equipment)	
 murmel_capacity = 100							# on average, a mothership visit is necessary every 'murmel_capacity's waypoint
 ## part 1.2: murmel time compression
 time_adjust_bin = 120/3600						#seconds-hr, whole process of opening and closing trash can 		
@@ -206,12 +205,9 @@ def f_mm_route(points_cap,points):
 		d_time_cost_loc += c
 	energy_cost_bin, time_cost_bin = cost_murmel_compressing(f_cap)
 	#print (d_energy_cost_loc,energy_cost_bin,d_time_cost_loc,time_cost_bin) consumption of murmel divided into distance and bins 
-	#weight_murmel_cst = (d_energy_cost_loc + energy_cost_bin)*30/70
 	f_energy_cost_bins = d_energy_cost_loc+energy_cost_bin
 	f_time_cost_bins = d_time_cost_loc+time_cost_bin
 	battery_changes, f_energy_cost_battery, f_time_cost_battery = cost_battery(f_energy_cost_bins,f_time_cost_bins)
-	#f_energy_cost_bins += (energy_unload + energy_compress + energy_emptying) * (len(points_cap)-1) #TODO compress tie and energy is times the acutal garbage collected
-	#f_time_cost_bins   += (time_unload + time_compress + time_emptying)       * (len(points_cap)-1)
 	return (f_cap,f_energy_cost_bins,f_time_cost_bins,f_dist_cost,final_route, battery_changes,f_energy_cost_battery,f_time_cost_battery)
 
 # part 4: calculate final cost and energy of selected pathfor Mothership
@@ -302,10 +298,10 @@ if __name__ == "__main__":
 		num_visited,c_values = knapSack( murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2)
 		value_current = c_values[num_visited[-1]].tolist()
 	# calculate final path on energy time and distance
-
 	f_cap, f_energy,f_time,f_distance, f_route, b_changes, b_energy, b_time = f_mm_route(num_visited_cap,num_visited)
 	num_visited_ms, f_route_ms, f_energy_ms, f_time_ms, f_dist = f_ms_route(num_visited_cap)
 
+	# print all the results from path planning
 	print ('Number of dustbins:', len(num_visited))
 	print ('Emptying times: ',f_cap)
 	print ('MURMEL route: ',num_visited_cap)
