@@ -4,44 +4,46 @@ import numpy as np
 from  collections.abc import Iterable	#flatten lists
 import os								# access operationg system dependent file paths
 import matplotlib.pyplot as plt					# plotting solution process and graphs
-import matplotlib							# plotting solution process and graphs
 
 ''' 
 Dynamic Knapsack Problem, returns the maximum value that can be put in a knapsack of capacity W given weight and value
 '''
 
-## part 0: settings
+# part 0: settings
 filename = 'moabit_test4'						# select vrp file
 show_gui = True
-### MURMEL
-weight_murmel_loc = 0.095						# energy consumption mobility of MURMEL
-weight_murmel_bin = 0.017						# energy consumption per bin
-weight_murmel_cst = 0							#(weight_murmel_loc + weight_murmel_bin)*30/70, energy consumption of constant varibles (equipment)				
+# part 1: MURMEL energy and time
+## part 1.1: murmel energy
 speed_murmel= 1/3.24							# time per distance in h per km (MURMEL) based on 0.9 m/s maximum speed in Urbanek bachelor thesis
-murmel_capacity = 50						# on average, a mothership visit is necessary every 'murmel_capacity's waypoint
-#### Time
-time_unload = 120/3600							#seconds-hr, whole process of opening and closing trash can 		
+energy_murmel_loc = 0.095						# energy consumption mobility of MURMEL in KWh
+energy_murmel_bin = 0.017						# energy consumption per bin in KWh
+murmel_capacity = 50							# on average, a mothership visit is necessary every 'murmel_capacity's waypoint
+## part 1.2: murmel time compression
+time_adjust_bin = 120/3600						#seconds-hr, whole process of opening and closing trash can 		
 time_compress  = 300/3600 						#seconds-hr
-time_emptying = 42.5/3600						# time to empty a dustbin in hr (MURMEL) based on 42.5s in Merle Simulation
-##### Energy
-energy_unload = 0.5								# energy consumption for dropping off load at mothership in kWh TODO
-energy_compress  = 0.5							# TODO
-energy_emptying = 0.0513 * time_emptying		# energy consumption for emptying a dustbin in kWh (MURMEL)
-### MOTHERSHIP
-weight_mothership = 0.27						# energy consumption kWh per km (mothership)
-speed_mothership = 1/50							# time per distance in h per km (mothership)
-time_dropoff = 1/60								# time to empty Murmels load into mothership in hr
-energy_dropoff = 0								# TODO
-battery_capacity = 960							# capacity of battery in kWh
+#time_emptying = 42.5/3600						# time to empty a dustbin in hr (MURMEL) based on 42.5s in Merle Simulation
 
-## part 0.1: globla vairables 
+# part 2: MOTHERSHIP energy and time
+speed_mothership = 1/50							# time per distance in h per km (mothership)
+energy_mothership_loc = 0.27					# energy consumption kWh per km of MOTHERSHIP
+
+## part 3: MOTHERSHIP and MM battery swap and unload time
+## part 3.1: battery swap
+energy_swapping_battery = 0.005					# energy consumption per battery swap between MS and MM TODO: get this from Abhi
+time_swapping_battery = 30/3600					# time consumption per battery swap between MS and MM TODO: get this from Abhi
+## part 3.2: unloading trash
+energy_unloading_trash = 0.005					# energy consumption per complete unload between MM and MS TODO: get this from Abhi
+time_unloading_trash = 30/3600					# time consumption per complete unload between MM and MS TODO: get this from Abhi
+
+# part 4: battery capacity
+battery_capacity = 0.96							# max battery capacity in kWh
+
+## part 0.1: global vairables 
 nodes = []
 value = []
 dist = []
 num_visited = [0]
 num_visited_cap = [[0]]
-column_width = 3.30
-
 fsize=10
 params = {'legend.fontsize': fsize*0.8,
           'axes.labelsize': fsize*0.9,
@@ -51,8 +53,7 @@ params = {'legend.fontsize': fsize*0.8,
           'axes.titlepad': fsize*1.5}
 plt.rcParams.update(params)
 
-
-### part 1: get waypoints and draw them
+### part 1: open file and get waypoints
 def file_oppening(filename):
 	try:
 		with open(filename + '.tsp', 'r') as tsp_file:
@@ -96,25 +97,35 @@ def geographic_2d_distance(i, j,nodes_coor):
 	lat2 = math.radians(nodes_coor[j,1])
 	return 2 * R * math.asin(math.sqrt(math.sin(dLat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2)**2)) #converted in kilometers
 
+# part 1.2: MM energy and time cost when moving from one node to another
 def cost_murmel_distance(dist):
-	energy_cost = dist*weight_murmel_loc
+	energy_cost = dist*energy_murmel_loc
+	energy_cost += energy_cost*30/70
 	time_cost = dist*speed_murmel
 	return (energy_cost, time_cost)
 
+# part 1.3: MM energy and time cost when compresing garbage 
 def cost_murmel_compressing(bins_empied):
-	#add cost of ms and murmel traveling to get together (decide on how will it be) 
-	energy_cost = weight_murmel_bin*bins_empied
-	time_cost =  (time_unload + time_compress + time_emptying)*bins_empied
+	energy_cost = energy_murmel_bin*bins_empied
+	energy_cost += energy_cost*30/70
+	time_cost = (time_adjust_bin + time_compress)*bins_empied
 	return (energy_cost,time_cost)
 
-def cost_murmel_swap_battery(dist):
-	return dist
-
+# part 1.4: MS energy and time cost
 def cost_mothership(dist):
-	energy_cost = dist*weight_mothership+energy_dropoff
-	time_cost = dist*speed_mothership+time_dropoff
-	return (energy_cost+time_cost,energy_cost,time_cost) 
+	# added energy and time of passing the trash from MM to MS
+	energy_cost = dist*energy_mothership_loc+energy_unloading_trash
+	time_cost = dist*speed_mothership+time_unloading_trash
+	return (energy_cost,time_cost) 
 
+# part 1.5: battery energy and time cost
+def cost_battery(energy_cost,time_cost):
+	battery_changes = math.ceil(energy_cost/battery_capacity)
+	energy_cost = battery_changes*energy_swapping_battery
+	time_cost = time_swapping_battery*battery_changes
+	return (battery_changes,energy_cost,time_cost)
+
+# part 2.1: update listed after nodes are visited
 def update(t_val, t_wt, t_coor,t_nod,t_point):
 	l_val = []
 	l_wt = []
@@ -149,11 +160,11 @@ def update(t_val, t_wt, t_coor,t_nod,t_point):
 		for num in num_1:
 			a.append(int(num[1]))
 			num_visited.append(int(num[1]))
-		num_visited_cap.append(a)
 		values_t = np.delete(value, num_visited, 1) # last arg colum 1 / row 0
 	#return the value list of the visited node
 	return (num_visited,values_t)
 
+# part 2: coptimize path between value and cost
 def knapSack(W, wt, val, n,coor, point_num):
 	# build matrices for dynamic program
 	K = [[0 for x in range(W + 1)] for x in range(n + 1)]
@@ -174,13 +185,15 @@ def knapSack(W, wt, val, n,coor, point_num):
 		n_point, values = update(val, wt, coor,coor_k[n][W],point_num)
 	return (n_point,values) 
 
-def calculate_final(points,capacity):
+# part 3: calculate final cost and energy of selected pathfor MURMEL
+def f_mm_route(points,capacity):
 	# calculate the final cost energy, time and distance 
 	final_route = []
 	f_dist_cost = 0
 	d_energy_cost_loc = 0
 	d_time_cost_loc = 0
 	t_nodes_coor = nodes_coor.tolist()
+	cap_coor_2 = []
 	# if SD did not exists
 	t_cap = []
 	temp_cap = 0
@@ -201,29 +214,57 @@ def calculate_final(points,capacity):
 		#print (t_cap[i], t_cap[i+1])
 		temp_cap += t_cap[i]  + t_cap[i+1]
 		if temp_cap>=100:
+			num_visited_cap.append(cap_coor_2)
+			cap_coor_2 =[]
 			temp_cap_2 += 1
 			temp_cap = 0
+		cap_coor_2.append(points[i])
 	#if SD did not exists
 	#given that the at needs to be emptied 
 	temp_cap_2 = temp_cap_2+1
 	energy_cost_bin, time_cost_bin = cost_murmel_compressing(temp_cap_2)
-	print ('---------')
 	print (d_energy_cost_loc,energy_cost_bin,d_time_cost_loc,time_cost_bin)
-	weight_murmel_cst = (d_energy_cost_loc + energy_cost_bin)*30/70
-	f_energy_cost_bins = d_energy_cost_loc+energy_cost_bin+weight_murmel_cst
+	f_energy_cost_bins = d_energy_cost_loc+energy_cost_bin
 	f_time_cost_bins = d_time_cost_loc+time_cost_bin
-	#f_energy_cost_bins += (energy_unload + energy_compress + energy_emptying) * (temp_cap_2) #TODO compress tie and energy is times the acutal garbage collected
-	#f_time_cost_bins   += (time_unload + time_compress + time_emptying)       * (temp_cap_2)
-	return (temp_cap_2,f_energy_cost_bins,f_time_cost_bins,f_dist_cost,final_route)
+	battery_changes, f_energy_cost_battery, f_time_cost_battery = cost_battery(f_energy_cost_bins,f_time_cost_bins)
+	return (temp_cap_2,f_energy_cost_bins,f_time_cost_bins,f_dist_cost,final_route, battery_changes,f_energy_cost_battery,f_time_cost_battery)
 
-def gui(f_route):
+# part 4: calculate final cost and energy of selected pathfor Mothership
+def f_ms_route(mm_f_rout_cap):
+	f_dist_cost = 0
+	d_energy_cost_loc = 0
+	d_time_cost_loc = 0
+	coor_ms = []
+	dis_temp = 0
+	num_visited_ms = []
+	t_nodes_coor = nodes_coor.tolist()
+	for point in mm_f_rout_cap:
+		num_visited_ms.append(point[-1])
+		coor_ms.append(t_nodes_coor[point[-1]])
+	# calculate the final cost energy distance
+	for i in range (0,len(num_visited_ms)-1):
+		f_dist_cost +=  (dist[num_visited_ms[i], num_visited_ms[i+1]])
+		a = dist[num_visited_ms[i], num_visited_ms[i+1]]
+		b,c = cost_mothership(a)
+		dis_temp += a
+		d_energy_cost_loc += b
+		d_time_cost_loc += c
+	return (num_visited_ms,coor_ms, d_energy_cost_loc,d_time_cost_loc,dis_temp)
+
+# part 5: draw path planning
+def gui(f_route,f_route_ms):
 	f_route = np.array(f_route)
-	x = f_route[:,1] #lon
-	y = f_route[:,0] #lat
+	f_route_ms = np.array(f_route_ms)
+	x1 = f_route[:,1] #lon
+	y1 = f_route[:,0] #lat
+	x2 = f_route_ms[:,1] #lon
+	y2 = f_route_ms[:,0] #lat
 	plt.xlabel("Longitud")
 	plt.ylabel("Latitud")
-	plt.scatter(x, y)
-	plt.plot(x,y)
+	plt.scatter(x1, y1,color='blue')
+	plt.plot(x1,y1,color='blue')
+	plt.scatter(x2, y2,color='red')
+	plt.plot(x2,y2,color='red')
 	plt.show()
 
 if __name__ == "__main__":
@@ -254,12 +295,12 @@ if __name__ == "__main__":
 	nodes_coor_2 = nodes_coor.tolist()
 	t_nodes_bins_cap = flatten(t_nodes_bins_cap)
 	nodes_bins_cap_2= flatten(nodes_bins_cap)
-	#eliminate origin point of MURMEL, I could call update function
+	# eliminate origin point of MURMEL
 	nodes_coor_2 = nodes_coor_2[1:]
 	nodes_num_2 = nodes_num_2[1:]
 	nodes_bins_cap_2 = nodes_bins_cap_2[1:]
-	#get the value function from initial point
-	value_current =value[0].tolist()
+	# get the value function from initial point
+	value_current = value[0].tolist()
 	value_current = value_current[1:]
 	'''
 	print (nodes_coor_2)
@@ -269,35 +310,40 @@ if __name__ == "__main__":
 	print (nodes_coor)
 	input()
 	'''
-	#make that if the limit of apcity is lower than the min cost, throw error
-	while nodes_coor_2: #while there is capcity or there is battery.
+	# part 1: calculate the optimal path
+	while nodes_coor_2: 
 		n = len(nodes_bins_cap_2)
-		#have a condition that if they are unequal that we stop the test
 		#print ( murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2)
 		#print (murmel_capacity,len(nodes_bins_cap_2),len(value_current),n,len(nodes_coor_2),len(nodes_num_2))
 		num_visited,c_values = knapSack( murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2)
-		#chnage value list to last point
+		#change value list to last point
 		value_current = c_values[num_visited[-1]].tolist()
 	#calculate final path on energy time and distance
 	#num_visited = [{0,3,2,4,6,5,8,7,10,9,11,12,13,14,15,16,17,18,19,20,21,23,22,24,123,124,25,125,27,26,28,29,30,34,35,36,37,38,39,33,32,31,47,48,44,42,40,41,43,45,46,120,122,121,50,49,53,51,52,54,55,59,57,58,56,60,63,64,65,61,66,67,62,68,71,72,73,75,76,77,78,80,79,81,74,70,69,86,85,87,97,88,96,84,89,94,90,93,91,92,100,98,101,99,102,103,104,106,105,107,108,110,111,109,113,112,114,116,118,115,117,119,179,181,180,182,183,184,185,186,187,189,188,190,178,177,176,175,174,173,171,172,170,169,168,167,166,165,163,164,143,142,141,144,145,146,152,153,151,148,150,147,149,161,160,159,155,158,162,157,156,154,133,139,132,131,130,129,136,135,137,134,138,140,82,83,95,128,127,126,1,191,192,210,211,212,213,209,208,207,204,202,206,201,200,199,198,203,196,197,195,194,193,205]
 	#t_nodes_bins_cap = [0,64,18,14,70,78,72,95,81,67,96,69,84,88,65,79,43,30,22,14,53,52,57,19,6,2,29,75,74,45,46,39,8,90,92,14,14,58,55,96,93,52,41,5,11,84,18,37,20,7,56,100,14,15,48,12,100,23,61,7,60,61,46,94,36,33,49,5,2,70,18,43,78,72,51,91,78,77,93,50,64,6,59,58,83,70,5,6,65,51,74,25,72,78,28,79,69,55,3,21,48,11,59,64,71,12,54,4,65,20,4,6,83,58,62,100,4,31,87,8,3,29,38,25,28,33,47,31,89,25,31,69,6,18,65,71,6,15,32,23,24,56,87,10,64,98,27,21,34,5,66,50,5,95,19,63,72,57,66,40,90,93,84,5,52,56,5,64,56,47,100,19,70,97,96,32,27,76,84,24,92,42,6,31,39,5,69,46,38,88,11,59,97,77,41,9,1,53,19,98,99,40,4,99,56,8,47,84,53,64,95,11,63,82]
-	f_cap, f_energy,f_time,f_distance, f_route = calculate_final(num_visited,t_nodes_bins_cap)
-
-	print('Visited Ndes: ',num_visited)
-	print ('Visited Ndes with cap: ',num_visited_cap)
+	f_cap, f_energy,f_time,f_distance, f_route, b_changes, b_energy, b_time = f_mm_route(num_visited,t_nodes_bins_cap)
+	print (t_nodes_bins_cap)
+	num_visited_ms, f_route_ms, f_energy_ms, f_time_ms, f_dist = f_ms_route(num_visited_cap)
+	
+	# print all the results from path planning
 	print ('Number of dustbins:', len(num_visited))
 	print ('Emptying times: ',f_cap)
-	print ('Energy in KWhs: ',f_energy)
-	print ('Time in hrs: ', f_time)
-	print ('Distance in km: ',f_distance) #, f_route)
+	print ('MURMEL route: ',num_visited_cap)
+	print ('Mothership route: ',num_visited_ms)
+	print ('MURMEL Energy in KWhs: ',f_energy)
+	print ('MURMEL Time in hrs: ', f_time)
+	print ('MURMEL Distance in km: ',f_distance) #, f_route)
+	print ('MS Energy in KWhs: ',f_energy_ms)
+	print ('MS Time in hrs: ', f_time_ms)
+	print ('MS Distance in km:', f_dist)
+	print ('Battery changes: ', b_changes)
+	print ('Swap energy in KWhs: ', b_energy)
+	print ('Swap time in hrs: ', b_time)
+	print ('Total Energy in KWhs: ',f_energy+f_energy_ms+b_energy)
+	print ('Total Time in hrs: ', max((f_time+b_time),(f_time_ms+b_time)))
+	print ('Total Distance in km: ', f_distance+f_dist)
 	print ('Finished')
-	if show_gui:
-		gui(f_route)		
 
-#TODO Next
-#1 complete the total cost of the path
-#2 add mother ship
-#3 calibrate cost function to get a good cost-benefit trade off
-# make a conection between the price we have for energy and time so we can correlate energy and time 
-#4 add a cost function for the battery
+	if show_gui:
+		gui(f_route,f_route_ms)		
 

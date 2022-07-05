@@ -44,7 +44,6 @@ value = []
 dist = []
 num_visited = [0]
 num_visited_cap = [[0]]
-total_energy_consump = 0
 fsize=10
 params = {'legend.fontsize': fsize*0.8,
           'axes.labelsize': fsize*0.9,
@@ -98,27 +97,28 @@ def geographic_2d_distance(i, j,nodes_coor):
 	lat2 = math.radians(nodes_coor[j,1])
 	return 2 * R * math.asin(math.sqrt(math.sin(dLat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2)**2)) #converted in kilometers
 
-# part 1.2: MM energy and time cost
+# part 1.2: MM energy and time cost when moving from one node to another
 def cost_murmel_distance(dist):
 	energy_cost = dist*energy_murmel_loc
 	energy_cost += energy_cost*30/70
 	time_cost = dist*speed_murmel
 	return (energy_cost, time_cost)
 
+# part 1.3: MM energy and time cost when compressing garbage
 def cost_murmel_compressing(bins_empied):
 	energy_cost = energy_murmel_bin*bins_empied
 	energy_cost += energy_cost*30/70
 	time_cost = (time_adjust_bin + time_compress)*bins_empied
 	return (energy_cost,time_cost)
 
-# part 1.2: MS energy and time cost
+# part 1.4: MS energy and time cost
 def cost_mothership(dist):
 	# added energy and time of passing the trash from MM to MS
 	energy_cost = dist*energy_mothership_loc+energy_unloading_trash
 	time_cost = dist*speed_mothership+time_unloading_trash
 	return (energy_cost,time_cost) 
 
-# part 1.3: battery energy and time cost
+# part 1.5: battery energy and time cost
 def cost_battery(energy_cost,time_cost):
 	battery_changes = math.ceil(energy_cost/battery_capacity)
 	energy_cost = battery_changes*energy_swapping_battery
@@ -204,7 +204,7 @@ def f_mm_route(points_cap,points):
 		d_energy_cost_loc += b
 		d_time_cost_loc += c
 	energy_cost_bin, time_cost_bin = cost_murmel_compressing(f_cap)
-	#print (d_energy_cost_loc,energy_cost_bin,d_time_cost_loc,time_cost_bin) consumption of murmel divided into distance and bins 
+	print (d_energy_cost_loc,energy_cost_bin,d_time_cost_loc,time_cost_bin) #consumption of murmel divided into distance and bins 
 	f_energy_cost_bins = d_energy_cost_loc+energy_cost_bin
 	f_time_cost_bins = d_time_cost_loc+time_cost_bin
 	battery_changes, f_energy_cost_battery, f_time_cost_battery = cost_battery(f_energy_cost_bins,f_time_cost_bins)
@@ -291,7 +291,7 @@ if __name__ == "__main__":
 	input()
 	'''
 	# part 1: calculate the optimal path
-	while nodes_coor_2: #while there is capcity or there is battery.
+	while nodes_coor_2: 
 		n = len(nodes_bins_cap_2)
 		#print ( murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2)
 		#print (murmel_capacity,len(nodes_bins_cap_2),len(value_current),n,len(nodes_coor_2),len(nodes_num_2))
