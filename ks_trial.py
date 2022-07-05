@@ -37,7 +37,7 @@ energy_unloading_trash = 0.005					# energy consumption per complete unload betw
 time_unloading_trash = 30/3600					# time consumption per complete unload between MM and MS TODO: get this from Abhi
 
 # part 4: battery capacity
-bateyr_capacity = 0.96							# max battery capacity in kWh
+battery_capacity = 0.96							# max battery capacity in kWh
 
 ## part 0.1: global vairables 
 nodes = []
@@ -102,11 +102,13 @@ def geographic_2d_distance(i, j,nodes_coor):
 # part 1.2: MM energy and time cost
 def cost_murmel_distance(dist):
 	energy_cost = dist*energy_murmel_loc
+	energy_cost += energy_cost*30/70
 	time_cost = dist*speed_murmel
 	return (energy_cost, time_cost)
 
 def cost_murmel_compressing(bins_empied):
 	energy_cost = energy_murmel_bin*bins_empied
+	energy_cost += energy_cost*30/70
 	time_cost = (time_adjust_bin + time_compress)*bins_empied
 	return (energy_cost,time_cost)
 
@@ -116,6 +118,13 @@ def cost_mothership(dist):
 	energy_cost = dist*energy_mothership_loc+energy_unloading_trash
 	time_cost = dist*speed_mothership+time_unloading_trash
 	return (energy_cost,time_cost) 
+
+# part 1.3: battery energy and time cost
+def cost_battery(energy_cost,time_cost):
+	battery_changes = math.ceil(energy_cost/battery_capacity)
+	energy_cost = battery_changes*energy_swapping_battery
+	time_cost = time_swapping_battery*battery_changes
+	return (battery_changes,energy_cost,time_cost)
 
 # part 2.1: update listed after nodes are visited
 def update(t_val, t_wt, t_coor,t_nod,t_point):
@@ -197,12 +206,13 @@ def f_mm_route(points_cap,points):
 		d_time_cost_loc += c
 	energy_cost_bin, time_cost_bin = cost_murmel_compressing(f_cap)
 	#print (d_energy_cost_loc,energy_cost_bin,d_time_cost_loc,time_cost_bin) consumption of murmel divided into distance and bins 
-	weight_murmel_cst = (d_energy_cost_loc + energy_cost_bin)*30/70
-	f_energy_cost_bins = d_energy_cost_loc+energy_cost_bin+weight_murmel_cst
+	#weight_murmel_cst = (d_energy_cost_loc + energy_cost_bin)*30/70
+	f_energy_cost_bins = d_energy_cost_loc+energy_cost_bin
 	f_time_cost_bins = d_time_cost_loc+time_cost_bin
+	battery_changes, f_energy_cost_battery, f_time_cost_battery = cost_battery(f_energy_cost_bins,f_time_cost_bins)
 	#f_energy_cost_bins += (energy_unload + energy_compress + energy_emptying) * (len(points_cap)-1) #TODO compress tie and energy is times the acutal garbage collected
 	#f_time_cost_bins   += (time_unload + time_compress + time_emptying)       * (len(points_cap)-1)
-	return (f_cap,f_energy_cost_bins,f_time_cost_bins,f_dist_cost,final_route)
+	return (f_cap,f_energy_cost_bins,f_time_cost_bins,f_dist_cost,final_route, battery_changes,f_energy_cost_battery,f_time_cost_battery)
 
 # part 4: calculate final cost and energy of selected pathfor Mothership
 def f_ms_route(mm_f_rout_cap):
@@ -293,7 +303,7 @@ if __name__ == "__main__":
 		value_current = c_values[num_visited[-1]].tolist()
 	# calculate final path on energy time and distance
 
-	f_cap, f_energy,f_time,f_distance, f_route = f_mm_route(num_visited_cap,num_visited)
+	f_cap, f_energy,f_time,f_distance, f_route, b_changes, b_energy, b_time = f_mm_route(num_visited_cap,num_visited)
 	num_visited_ms, f_route_ms, f_energy_ms, f_time_ms, f_dist = f_ms_route(num_visited_cap)
 
 	print ('Number of dustbins:', len(num_visited))
@@ -306,8 +316,11 @@ if __name__ == "__main__":
 	print ('MS Energy in KWhs: ',f_energy_ms)
 	print ('MS Time in hrs: ', f_time_ms)
 	print ('MS Distance in km:', f_dist)
-	print ('Total Energy in KWhs: ',f_energy+f_energy_ms)
-	print ('Total Time in hrs: ', max(f_time,f_time_ms))
+	print ('Battery changes: ', b_changes)
+	print ('Swap energy in KWhs: ', b_energy)
+	print ('Swap time in hrs: ', b_time)
+	print ('Total Energy in KWhs: ',f_energy+f_energy_ms+b_energy)
+	print ('Total Time in hrs: ', max((f_time+b_time),(f_time_ms+b_time)))
 	print ('Total Distance in km: ', f_distance+f_dist)
 	print ('Finished')
 
@@ -317,5 +330,5 @@ if __name__ == "__main__":
 
 	#TODO Next
 	#1 find a better cost function which will help optimize the path
-	#2 add change fo battery
-	##2.1 add the 	
+	#2 TODO 4 items, check with Abhi the numbers!
+	# Everything else is ready!!
