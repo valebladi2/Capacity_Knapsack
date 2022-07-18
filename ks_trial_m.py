@@ -10,8 +10,9 @@ Dynamic Knapsack Problem, returns the maximum value that can be put in a knapsac
 '''
 
 # part 0: settings
-filename = 'moabit220'						# select vrp file
+filename = 'moabit_test4'						# select vrp file
 show_gui = True
+num_mm = 3
 # part 1: MURMEL energy and time
 ## part 1.1: murmel energy
 speed_murmel= 1/3.24							# time per distance in h per km (MURMEL) based on 0.9 m/s maximum speed in Urbanek bachelor thesis
@@ -30,7 +31,7 @@ energy_mothership_loc = 0.27					# energy consumption kWh per km of MOTHERSHIP
 ## part 3: MOTHERSHIP and MM battery swap and unload time
 ## part 3.1: battery swap
 energy_swapping_battery = 0.005					# energy consumption per battery swap between MS and MM TODO: get this from Abhi
-time_swapping_battery = 240/3600				# time consumption per battery swap between MS and MM 3 min.
+time_swapping_battery = 30/3600					# time consumption per battery swap between MS and MM TODO: get this from Abhi
 ## part 3.2: unloading trash
 energy_unloading_trash = 0.005					# energy consumption per complete unload between MM and MS TODO: get this from Abhi
 time_unloading_trash = 30/3600					# time consumption per complete unload between MM and MS TODO: get this from Abhi
@@ -42,8 +43,10 @@ battery_capacity = 0.96							# max battery capacity in kWh
 nodes = []
 value = []
 dist = []
-num_visited = [0]
-num_visited_cap = [[0]]
+
+
+
+
 fsize=10
 params = {'legend.fontsize': fsize*0.8,
           'axes.labelsize': fsize*0.9,
@@ -125,6 +128,14 @@ def cost_battery(energy_cost,time_cost):
 	time_cost = time_swapping_battery*battery_changes
 	return (battery_changes,energy_cost,time_cost)
 
+def init_route(murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2,num_visited,num_visited_cap):
+	# initialize the route
+	for mm in range (1,num_mm+1):
+		num_visited,c_values = knapSack( murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2)
+		value_current = c_values[num_visited[0]].tolist()
+		n = len(nodes_bins_cap_2)
+	return (num_visited,num_visited_cap,value_current,c_values)
+
 # part 2.1: update listed after nodes are visited
 def update(t_val, t_wt, t_coor,t_nod,t_point):
 	l_val = []
@@ -164,6 +175,51 @@ def update(t_val, t_wt, t_coor,t_nod,t_point):
 		values_t = np.delete(value, num_visited, 1) # last arg colum 1 / row 0
 	#return the value list of the visited node
 	return (num_visited,values_t)
+	
+# part 2.1: update listed after nodes are visited
+def update_m(t_val, t_wt, t_coor,t_nod,t_point,t_num_visited_r,j):
+	l_val = []
+	l_wt = []
+	l_coor = []
+	l_point = []
+	#flatten the irregular list 
+	t_nod = flatten(t_nod)
+	#remove the visited nodes, so next search is based on the unvisted nodes 
+	for i in range (0,len(t_nod),2):
+		if [t_nod[i],t_nod[i+1]] in t_coor:
+			n = t_coor.index([t_nod[i],t_nod[i+1]])
+			#have them in the visited lists
+			l_val.append(t_val[n])
+			l_wt.append(t_wt[n])
+			l_coor.append(t_coor[n])
+			l_point.append(t_point[n])
+			#pop elements from the lists
+			t_val.pop(n)
+			t_wt.pop(n)
+			t_coor.pop(n)
+			t_point.pop(n)
+	#sort coor from max to min value
+	l_point = flatten(l_point)
+	values_t = []
+	if l_val and l_point:
+		num_1 = []
+		sort_val = np.argsort(l_val)
+		for i in range (0,len(sort_val)):
+			num_1.append([sort_val[i],l_point[i]])
+		num_1= sorted(num_1, key=lambda x:x[0],reverse=True)
+		a = []
+		for num in num_1:
+			a.append(int(num[1]))
+			t_num_visited_r.append(int(num[1]))
+		#print (a)
+		#print (j)
+		j.append(a)
+		#print (t_num_visited_r)
+		#print (j)
+		#input()
+		values_t = np.delete(value, t_num_visited_r, 1) # last arg colum 1 / row 0
+	#return the value list of the visited node
+	return (t_num_visited_r,values_t,j)
 
 # part 2: coptimize path between value and cost
 def knapSack(W, wt, val, n,coor, point_num):
@@ -185,6 +241,27 @@ def knapSack(W, wt, val, n,coor, point_num):
 				coor_k[i][w]= (coor_k[i-1][w])
 		n_point, values = update(val, wt, coor,coor_k[n][W],point_num)
 	return (n_point,values) 
+
+# part 2: coptimize path between value and cost
+def knapSack_m(W, wt, val, n,coor, point_num,t_num_visited_r,t_num_visited_cap_r):
+	# build matrices for dynamic program
+	K = [[0 for x in range(W + 1)] for x in range(n + 1)]
+	coor_k = [[[0,0] for x in range(W + 1)] for x in range(n + 1)]
+	# max capacity W given the weight and added value of the bins 
+	for i in range(n+1):
+		for w in range(W + 1):
+			if i == 0 or w == 0:
+				K[i][w] = 0
+			elif wt[i-1] <= w:
+				max_opt = (val[i-1] + K[i-1][w-wt[i-1]],  K[i-1][w])
+				max_opt2 = ([coor[i-1],coor_k[i-1][w-wt[i-1]]], coor_k[i-1][w])
+				K[i][w] = max(max_opt)
+				coor_k[i][w]= max_opt2[max_opt.index(max(max_opt))]
+			else:
+				K[i][w] = K[i-1][w]
+				coor_k[i][w]= (coor_k[i-1][w])
+		n_point, values,t_num_visited_cap_r = update_m(val, wt, coor,coor_k[n][W],point_num,t_num_visited_r,t_num_visited_cap_r)
+	return (n_point,values,t_num_visited_cap_r) 
 
 # part 3: calculate final cost and energy of selected pathfor MURMEL
 def f_mm_route(points_cap,points):
@@ -248,86 +325,144 @@ def gui(f_route,f_route_ms):
 	plt.plot(x2,y2,color='red')
 	plt.show()
 
-#if __name__ == "__main__":
-file_oppening(filename)
-print('#Debug info: input file nodes part:')
-for node in nodes:
-	print ('#   ' + str(node))
+if __name__ == "__main__":
+	file_oppening(filename)
+	print('#Debug info: input file nodes part:')
+	for node in nodes:
+		print ('#   ' + str(node))
 
-# get nodes specifications in different arrays
-nodes_num = np.array(nodes)[:,[0]]
-nodes_coor = np.array(nodes)[:,[1,2]]
-nodes_bins_cap = np.array(nodes)[:,[3]].astype(int)
-# generate cost and value functions for murmel
-dist = np.zeros((len(nodes_coor), len(nodes_coor)))
-#costs = np.zeros((len(nodes_coor), len(nodes_coor)))
-value = np.zeros((len(nodes_coor), len(nodes_coor)))
-for i in range(len(nodes_coor)):
-	for j in range(i):
-		dist[i,j] = geographic_2d_distance(i,j,nodes_coor)
-		dist[j,i] = dist[i,j]
-		#a,b = cost_murmel_distance(dist[j,i])
-		#costs[j,i] = a+b
-		#costs[i,j] = costs[j,i]
-		value[i,j] = ((nodes_bins_cap[i]+nodes_bins_cap[j])/sum(nodes_bins_cap))/dist[i,j]**2 	#the value it is added given its collection
-		value[j,i] = ((nodes_bins_cap[i]+nodes_bins_cap[j])/sum(nodes_bins_cap))/dist[j,i]**2 	#TODO think if it should it be dist or cost
-		#value[i,j] = ((nodes_bins_cap[i]+nodes_bins_cap[j])/sum(nodes_bins_cap))/costs[i,j]*0.1 #the value it is added given its collection
-		#value[j,i] = ((nodes_bins_cap[i]+nodes_bins_cap[j])/sum(nodes_bins_cap))/costs[j,i]*0.1 #TODO think if it should it be dist or cost
-print (value)
-# change from np.array to lists 
-nodes_num_2 = nodes_num.tolist()
-nodes_coor_2 = nodes_coor.tolist()
-nodes_bins_cap_2= flatten(nodes_bins_cap)
-# eliminate origin point of MURMEL
-nodes_coor_2 = nodes_coor_2[1:]
-nodes_num_2 = nodes_num_2[1:]
-nodes_bins_cap_2 = nodes_bins_cap_2[1:]
-# get the value function from initial point
-value_current = value[0].tolist()
-value_current = value_current[1:]
-
-print (nodes_coor_2)
-print (nodes_num_2)
-print (nodes_bins_cap_2)
-print (value)
-print (nodes_coor)
-input()
-
-# part 1: calculate the optimal path
-while nodes_coor_2: 
+	# get nodes specifications in different arrays
+	nodes_num = np.array(nodes)[:,[0]]
+	nodes_coor = np.array(nodes)[:,[1,2]]
+	nodes_bins_cap = np.array(nodes)[:,[3]].astype(int)
+	# generate cost and value functions for murmel
+	dist = np.zeros((len(nodes_coor), len(nodes_coor)))
+	#costs = np.zeros((len(nodes_coor), len(nodes_coor)))
+	value = np.zeros((len(nodes_coor), len(nodes_coor)))
+	for i in range(len(nodes_coor)):
+		for j in range(i):
+			dist[i,j] = geographic_2d_distance(i,j,nodes_coor)
+			dist[j,i] = dist[i,j]
+			#costs[j,i] = cost_murmel(dist[j,i])
+			#costs[i,j] = costs[j,i]
+			value[i,j] = ((nodes_bins_cap[i]+nodes_bins_cap[j])/sum(nodes_bins_cap))/dist[i,j]**2 	#the value it is added given its collection
+			value[j,i] = ((nodes_bins_cap[i]+nodes_bins_cap[j])/sum(nodes_bins_cap))/dist[j,i]**2 	#TODO think if it should it be dist or cost
+	# change from np.array to lists 
+	nodes_num_2 = nodes_num.tolist()
+	nodes_coor_2 = nodes_coor.tolist()
+	nodes_bins_cap_2= flatten(nodes_bins_cap)
+	# eliminate origin point of MURMEL
+	nodes_coor_2 = nodes_coor_2[1:]
+	nodes_num_2 = nodes_num_2[1:]
+	nodes_bins_cap_2 = nodes_bins_cap_2[1:]
+	# get the value function from initial point
+	value_current = value[1].tolist()
+	value_current = value_current[1:]
+	num_visited = [0]
+	num_visited_cap = []
+	# part 1: calculate the route of MURMEL
+	num_visited, num_visited_cap,value_current, c_values = init_route( murmel_capacity, nodes_bins_cap_2,value_current,len(nodes_bins_cap_2),nodes_coor_2, nodes_num_2,num_visited,num_visited_cap)
+	for mm in num_visited_cap:
+		mm.insert(0,0)
+	# copied route so it would not change th e inital path
+	t_num_visited = num_visited[:]
+	t_num_visited_cap_r = []
 	n = len(nodes_bins_cap_2)
-	print ( murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2)
+	print (murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2)
 	print (murmel_capacity,len(nodes_bins_cap_2),len(value_current),n,len(nodes_coor_2),len(nodes_num_2))
-	num_visited,c_values = knapSack( murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2)
-	value_current = c_values[num_visited[-1]].tolist()
-# calculate final path on energy time and distance
-f_cap, f_energy,f_time,f_distance, f_route, b_changes, b_energy, b_time = f_mm_route(num_visited_cap,num_visited)
-num_visited_ms, f_route_ms, f_energy_ms, f_time_ms, f_dist = f_ms_route(num_visited_cap)
+	print (t_num_visited,num_visited_cap)
+	initial_points = num_visited_cap[:]
+	for mm_init in num_visited_cap:
+		t_num_visited_r = mm_init[:]  # inital route! 
+		t_num_visited_cap_r.append(flatten(mm_init[:])) # inital route! 
+		value_current = c_values[t_num_visited_r[-1]].tolist()
+		print(t_num_visited_r,t_num_visited_cap_r)
+		print (mm_init)
+		a = flatten(t_num_visited_r)
+		input()
+		while  len(t_num_visited_r) <= math.ceil(len(nodes_bins_cap_2)+8/1):
+			#print (t_num_visited_r) 
+			#input()
+			n = len(nodes_bins_cap_2)
+			t_num_visited_r,c_values,t_num_visited_cap_r = knapSack_m( murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2,t_num_visited_r,t_num_visited_cap_r)
+			value_current = c_values[t_num_visited_r[-1]].tolist()
+	print ('¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡')
 
-# print all the results from path planning
-print ('Number of dustbins:', len(num_visited))
-print ('Emptying times: ',f_cap)
-print ('MURMEL route: ',num_visited_cap)
-print ('Mothership route: ',num_visited_ms)
-print ('MURMEL Energy in KWhs: ',f_energy)
-print ('MURMEL Time in hrs: ', f_time)
-print ('MURMEL Distance in km: ',f_distance) #, f_route)
-print ('MS Energy in KWhs: ',f_energy_ms)
-print ('MS Time in hrs: ', f_time_ms)
-print ('MS Distance in km:', f_dist)
-print ('Battery changes: ', b_changes)
-print ('Swap energy in KWhs: ', b_energy)
-print ('Swap time in hrs: ', b_time)
-print ('Total Energy in KWhs: ',f_energy+f_energy_ms+b_energy)
-print ('Total Time in hrs: ', max((f_time+b_time),(f_time_ms+b_time)))
-print ('Total Distance in km: ', f_distance+f_dist)
-print ('Finished')
+	## points we have the inital routes, 
+	### the point is repeated one takes the place of a point so is not taken 
+	#### when recalculating with game theory all thepoints should be taken.
 
-if show_gui:
-	gui(f_route,f_route_ms)
+	c = []
+	d = []
+	for i in range (0,len(t_num_visited_cap_r)):
+		print (i)
+		d.append(t_num_visited_cap_r[i])
+		if t_num_visited_cap_r[i] in initial_points:
+			c.append(d[:-1])
+			d = []
+			d.append(t_num_visited_cap_r[i])
+		if i == len(t_num_visited_cap_r)-1:
+			c.append(d)
+			c = c[1:]
+	print ('-----------------------------------------------------')
+	print (c)
+	print (t_num_visited_r,t_num_visited_cap_r)
+	print (num_visited,num_visited_cap)
+	print (t_num_visited)
+	print (len(t_num_visited_r),len(t_num_visited_cap_r),len(num_visited),len(num_visited_cap))
 
+#num visited is wrong 
+# t_num_visited_cap_r is wring, it start concat from the first list, make new list
+# t_num_visited_r new path of MM individually 
+# num_visited and t_num_visited are the same
+# num_visited_cap  and t_num_visited_cap are the same
+	
+	'''
+	print (nodes_coor_2)
+	print (nodes_num_2)
+	print (nodes_bins_cap_2)
+	print (value)
+	print (nodes_coor)
+	input()
+	
+	# part 1: calculate the optimal path
+	while nodes_coor_2: 
+		n = len(nodes_bins_cap_2)
+		#print ( murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2)
+		#print (murmel_capacity,len(nodes_bins_cap_2),len(value_current),n,len(nodes_coor_2),len(nodes_num_2))
+		num_visited,c_values = knapSack( murmel_capacity, nodes_bins_cap_2,value_current,n,nodes_coor_2, nodes_num_2)
+		value_current = c_values[num_visited[-1]].tolist()
+	# calculate final path on energy time and distance
+	f_cap, f_energy,f_time,f_distance, f_route, b_changes, b_energy, b_time = f_mm_route(num_visited_cap,num_visited)
+	num_visited_ms, f_route_ms, f_energy_ms, f_time_ms, f_dist = f_ms_route(num_visited_cap)
 
-#TODO Next
-#1 find a better cost function which will help optimize the path
-#2 TODO 4 items, check with Abhi the numbers!
-# Everything else is ready!!
+	# print all the results from path planning
+	print ('Number of dustbins:', len(num_visited))
+	print ('Emptying times: ',f_cap)
+	print ('MURMEL route: ',num_visited_cap)
+	print ('Mothership route: ',num_visited_ms)
+	print ('MURMEL Energy in KWhs: ',f_energy)
+	print ('MURMEL Time in hrs: ', f_time)
+	print ('MURMEL Distance in km: ',f_distance) #, f_route)
+	print ('MS Energy in KWhs: ',f_energy_ms)
+	print ('MS Time in hrs: ', f_time_ms)
+	print ('MS Distance in km:', f_dist)
+	print ('Battery changes: ', b_changes)
+	print ('Swap energy in KWhs: ', b_energy)
+	print ('Swap time in hrs: ', b_time)
+	print ('Total Energy in KWhs: ',f_energy+f_energy_ms+b_energy)
+	print ('Total Time in hrs: ', max((f_time+b_time),(f_time_ms+b_time)))
+	print ('Total Distance in km: ', f_distance+f_dist)
+	print ('Finished')
+
+	if show_gui:
+		gui(f_route,f_route_ms)
+
+	'''
+	#TODO Next
+	#1 find initial route regarding the initial point
+	#3 after the initial route, the inital path must be passed and then the path is calculated
+	#4 after is the path is calculated individually the division of the path starts 
+	#5 who stays with a point in common is decided by game theory 
+	#6 game, social optimum 
+	#7 and that is it!
